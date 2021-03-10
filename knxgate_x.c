@@ -19,16 +19,9 @@
 // comando mqtt sw on /off 31		ok 31 81    31 80
 // comando mqtt setlevel  28        ok + 89 29   88 29    -  81 29   80 29    
 // comando mqtt setlevel  31		ok + 89 29   88 29    -  81 29   80 29
-// test invalidi:
-
-
-
-//2 - dimmer funziona solo on e off non setlevel
-//3 - provare tapparelle %
-//4 - provare alexa
 
 #define PROGNAME "KNXGATE_X "
-#define VERSION  "1.20"
+#define VERSION  "1.61"
 //#define KEYBOARD
 
 // =============================================================================================
@@ -93,7 +86,8 @@ int	   fduart = 0;
 // =============================================================================================
 FILE   *fConfig;
 char	filename[64];
-int  timeToClose = 0;
+int		timeToClose = 0;
+char	previous_address = 0;
 // =============================================================================================
   typedef union _WORD_VAL
   {
@@ -280,7 +274,7 @@ int setFirst(void)
 
   requestBuffer[requestLen++] = '@';
   requestBuffer[requestLen++] = 'O';
-  requestBuffer[requestLen++] =  3;  // domotic_options;
+  requestBuffer[requestLen++] =  4;  // domotic_options;
 
   //  requestBuffer[requestLen++] = '@';
 //  requestBuffer[requestLen++] = 'U'; // gestione tapparelle senza percentuale
@@ -410,7 +404,7 @@ static char parse_opts(int argc, char *argv[])	// NOT USED
 			break;
 
 		case '?':
-            fprintf (stderr, "Unknown option `-%c'.\n", optopt);
+            printf("Unknown option `-%c'.\n", optopt);
 			return 2;		
 
 		default:
@@ -519,7 +513,7 @@ void rxBufferLoad(int tries)
 		r = read(fduart, &sbyte, 1);
 	    if ((r > 0) && (rx_len < rx_max))
 		{
-			if (verbose) fprintf(stderr,"%02x ", sbyte);	// scrittura a video
+			if (verbose) printf("%02x ", sbyte);	// scrittura a video
 			rx_buffer[rx_len++] = sbyte;
 			loop = 0;
 		}
@@ -528,7 +522,7 @@ void rxBufferLoad(int tries)
 		uSleep(90);
     }
     rx_buffer[rx_len] = 0;        // aggiunge 0x00
-	if ((verbose) && (rx_len)) fprintf(stderr," - ");	// scrittura a video
+	if ((verbose) && (rx_len)) printf(" - ");	// scrittura a video
 }
 // ===================================================================================
 int	waitReceive(char w)
@@ -548,7 +542,7 @@ int	waitReceive(char w)
 			if (verbose>2) printf("received: %2x\n", sbyte);	// scrittura a video
 			if (sbyte == w) 
 			{
-				if (verbose>2) printf("OK");	// scrittura a video
+				if (verbose>2) printf("OK\n");	// scrittura a video
 				return 1;
 			}
 		}
@@ -588,14 +582,15 @@ void bufferPicLoad(char * decBuffer)
 		tcpJarg(decBuffer,"\"maxp\"",smaxpos);
 
 		maxp.Val = aTOint(smaxpos);
+		if (maxp.Val > 250) maxp.Val = 250;
 	  }
 
-
-	  if ((devtype == 9) || (devtype == 19) || (devtype == 4) || (devtype == 24)) 			// w6 - aggiorna tapparelle pct su pic
+	  if ((devtype == 8) || (devtype == 9) || (devtype == 4)) 			// w6 - aggiorna tapparelle pct su pic
 	  {
 		rx_len = 0;
 		rxBufferLoad(10);	// discard uart input
 
+		if (verbose) printf("req 8 base\n");
 		char requestBuffer[16];
 		int  requestLen = 0;
 		requestBuffer[requestLen++] = '§';
@@ -603,16 +598,37 @@ void bufferPicLoad(char * decBuffer)
 		requestBuffer[requestLen++] = '8';
 		requestBuffer[requestLen++] = device.byte.HB;     // device id - line sector
 		requestBuffer[requestLen++] = device.byte.LB;     // device id - address
+		previous_address			= device.byte.LB;     // device id - address
 		requestBuffer[requestLen++] = devtype;			  // device type
-		requestBuffer[requestLen++] = maxp.byte.HB;       // max position H
+		requestBuffer[requestLen++] = 0;				  // move address
 		requestBuffer[requestLen++] = maxp.byte.LB;       // max position L
 		write(fduart,requestBuffer,requestLen);			  // scrittura su knxgate
 
 		if (waitReceive('k') == 0)
 			printf("  -->PIC communication ERROR...\n");
 	  }
-//				  else
-//					maxp.Val = 0;
+
+	  if ((devtype == 18) || (devtype == 19) || (devtype == 24)) 			// w6 - aggiorna tapparelle pct su pic
+	  {
+		rx_len = 0;
+		rxBufferLoad(10);	// discard uart input
+
+		if (verbose) printf("req 8 move\n");
+		char requestBuffer[16];
+		int  requestLen = 0;
+		requestBuffer[requestLen++] = '§';
+		requestBuffer[requestLen++] = 'U';
+		requestBuffer[requestLen++] = '8';
+		requestBuffer[requestLen++] = device.byte.HB;     // device id - line sector
+		requestBuffer[requestLen++] = previous_address;     // device id - address
+		requestBuffer[requestLen++] = devtype;			  // device type
+		requestBuffer[requestLen++] = device.byte.LB;	  // move address
+		requestBuffer[requestLen++] = maxp.byte.LB;       // max position L
+		write(fduart,requestBuffer,requestLen);			  // scrittura su knxgate
+
+		if (waitReceive('k') == 0)
+			printf("  -->PIC communication ERROR...\n");
+	  }
 
 	} // deviceX > 0
   }  // busid != ""
@@ -649,13 +665,14 @@ void BufferMemo(char * decBuffer, char hueaction)  //  hueaction 1=add device
 	  tcpJarg(decBuffer,"\"type\"",stype);
 	  devtype = aTOchar(stype);
 	  busdevType[(int)device] = devtype;
+/*
 	  if (devtype == 8)
 		  busdevType[(int)device+1] = 18;
 	  if (devtype == 9)
 		  busdevType[(int)device+1] = 19;
 	  if (devtype == 4)
 		  busdevType[(int)device+1] = 24;
-
+*/
 	  printf("device %04X tipo %02u - %s \n",device,devtype,alexadescr);
 
 	  if ((hueaction) && (devtype < 11))		// w6 - alexa non ha bisogno dei types 0x0B 0x0C (11-12) 0x0E 0x0F 0x12 0x13 (18 19) - usa solo 01-04-08-09
@@ -708,6 +725,15 @@ void mqtt_dequeueExec( void)
 	  requestBuffer[requestLen++] = busid.byte.HB; // to   device
 	  requestBuffer[requestLen++] = busid.byte.LB; // to   device
 	  requestBuffer[requestLen++] = value;	// %
+	}
+	else
+	if ((command >= 0xF0) && (busid.Val != 0) && ((bustype == 8) || (bustype == 9) || (bustype == 18) || (bustype == 19)))
+	{
+	  requestBuffer[requestLen++] = '§';
+	  requestBuffer[requestLen++] = 'u'; 
+	  requestBuffer[requestLen++] = busid.byte.HB; // to   device
+	  requestBuffer[requestLen++] = busid.byte.LB; // to   device
+	  requestBuffer[requestLen++] = command;	// %
 	}
 	else
 	if ((command != 0xFF) && (busid.Val != 0) && (bustype != 0))
@@ -926,6 +952,7 @@ void hue_dequeueExec( void)
 			busdata.bustype = bustype;
 			busdata.busvalue = (char) pct; 
 			busdata.busfrom = 0;
+//			busdata.baseaddress = 0;
 //			busdata.buscommand = command;
 //			printf("mqttr %02x t:%02x c:%02x v:%d\n",busid,bustype,command,(char)pct);
 			if	(huemqtt_direct == 1)	// ponte diretto hue alexa -> pubblicazione stati
@@ -965,7 +992,7 @@ int main(int argc, char *argv[])
 
 	//	printf(CLR WHT BOLD UNDER PROGNAME BOLD VERSION NRM "\n");
 
-	printf(PROGNAME "\n");
+	printf(PROGNAME VERSION "\n");
 
 	if (parse_opts(argc, argv))
 		return 0;
@@ -1014,7 +1041,7 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 	else
-		if (verbose) fprintf(stderr,"Serial0 initialized - OK\n");
+		if (verbose) printf("Serial0 initialized - OK\n");
 
 	mSleep(20);					// pausa
 	rx_len = 0;
@@ -1077,7 +1104,7 @@ int main(int argc, char *argv[])
 			c = 0;
 		if (c > 0) 
 		{
-			if (verbose) fprintf(stderr,"\n%02X ", sbyte);	// scrittura a video
+			if (verbose) printf("\n%02X ", sbyte);	// scrittura a video
 			rx_len = 0;
 			rx_buffer[rx_len++] = sbyte;
 			rx_prefix = sbyte;
@@ -1096,17 +1123,22 @@ int main(int argc, char *argv[])
 		}
 // ---------------------------------------------------------------------------------------------------------------------------------
 
-		if ((rx_internal == 1) && (rx_buffer[1] == 'y') && ((rx_buffer[0] == 0xF5) || (rx_buffer[0] == 0xF6)))   
+		if ((rx_internal == 1) && (rx_buffer[1] == 'y') && ((rx_buffer[0] == 0xF6) || (rx_buffer[0] == 0xF7)))   
+//		if ((rx_internal == 1) && (rx_buffer[1] == 'y') && ((rx_buffer[0] == 0xF5) || (rx_buffer[0] == 0xF6)))   
 		{ // START pubblicazione STATO device 
+
+// address letto dal bus, può essere base o move...
 
   // KNX intero  [9] B4 10 29 0B 65 E1 00 81 7C
   // knx ridotto  [0xF5] [y] 29 0B 65 81
-  // knx ridotto  [0xF6] [y] 01 0F 01 81 01
+
+  // knx ridotto  [0xF6] [y] 01 0F 01 81 aa
+  // knx ridotto  [0xF7] [y] 01 0F 01 81 01 aa
 
 			WORD_VAL busid;
 			char devtype;
 			rx_internal = 9;
-			if (verbose) fprintf(stderr," (%c) msg\n",rx_buffer[1]);	// scrittura a video
+			if (verbose) printf(" (%c) msg\n",rx_buffer[1]);	// scrittura a video
 
 			bus_knx_queue _knxrx;
 		    busid.byte.HB = rx_buffer[3];  // to
@@ -1121,16 +1153,16 @@ int main(int argc, char *argv[])
 			}
 			devtype = busdevType[(int)busid.Val];
 			if (devtype == 0) devtype = 1;  // defult luce
-//			if ((devtype == 18) || (devtype == 19))
-//			{
-//				busid.Val--;   // riporta address a indirizzo base
-//				devtype = busdevType[busid.Val];
-//			}
-		    _knxrx.busid = busid.Val; 
 		    _knxrx.busfrom = (int)rx_buffer[2];  // from
 			_knxrx.bustype = devtype;
+			if ((devtype > 17) && (devtype < 30))
+			{
+			    busid.byte.LB = rx_buffer[rx_len-1];  // base address
+			}
 			_knxrx.buscommand = rx_buffer[5];
 			_knxrx.busvalue = busdevHue [(int)busid.Val];
+//			_knxrx.baseaddress = rx_buffer[rx_len-1];
+		    _knxrx.busid = busid.Val; 
 
 	// ==========================================================================================================
 //			setState(unsigned char id, char state, unsigned char value) // non indispensabile -
@@ -1143,7 +1175,7 @@ int main(int argc, char *argv[])
 			WORD_VAL busid;
 			char devtype;
 			rx_internal = 9;
-			if (verbose) fprintf(stderr," %c msg\n",rx_buffer[1]);	// scrittura a video
+			if (verbose) printf(" %c msg\n",rx_buffer[1]);	// scrittura a video
 
 			bus_knx_queue _knxrx;
 
@@ -1157,6 +1189,7 @@ int main(int argc, char *argv[])
 			_knxrx.buscommand = rx_buffer[1];	// u / m
 			_knxrx.busfrom = 0;
 			_knxrx.bustype = devtype;
+//			_knxrx.baseaddress = 0;
 
 			char hueid = busdevHue[(int)busid.Val];
 
@@ -1173,7 +1206,7 @@ int main(int argc, char *argv[])
 		c = getinNowait();				// lettura tastiera
 		if (c)
 		{
-			if (verbose) fprintf(stderr, "%c", (char) c);// echo a video
+			if (verbose) printf("%c", (char) c);// echo a video
 			if (uartgate)
 			{
 				n = write(fduart,&c,1);			// scrittura su knxgate

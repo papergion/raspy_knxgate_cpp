@@ -43,13 +43,11 @@
 // =============================================================================================
 typedef struct {
     uint16_t  busid;
-//    uint16_t  busid_master;
-//    uint16_t  busid_move;
     char bustype;
     char buscommand;
     char busvalue;
     uint16_t  busfrom;
-//  char busrequest;
+//	char baseaddress;
 } bus_knx_queue;
 // =============================================================================================
 int  MQTTconnect(char * broker, char * user, char * password, char verbose);

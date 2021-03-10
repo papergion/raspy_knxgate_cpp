@@ -160,27 +160,27 @@ int processMessage(char * topicName, char * payLoad)
 
     if (memcmp(payLoad, "STOP", 4) == 0)
 	{
-		command = 0x80;
+		command = 0xF0;
 // su STOP indirizzo deve essere base 
     }
     else
     {
 // su OPEN/CLOSE indirizzo deve essere base+1
-		device++;      // porta a base+1
+//		device++;      // porta a base+1
 		devtype = 18; // cover
 		if (memcmp(payLoad, "ON", 2) == 0)
-		  command = 0x81;
+		  command = 0xF1;
 		else if (memcmp(payLoad, "CLOSE", 5) == 0)
 		{
-		  command = 0x81;
+		  command = 0xF1;
 		  if ((domoticMode == 'h') || (domoticMode == 'H')) // home assistant
 			  strcpy(rpayload, "closed");
 		}
 		else if (memcmp(payLoad, "OFF", 3) == 0)
-		  command = 0x80;
+		  command = 0xF2;
 		else if (memcmp(payLoad, "OPEN", 4) == 0)
 		{
-		  command = 0x80;
+		  command = 0xF2;
 		  if ((domoticMode == 'h') || (domoticMode == 'H')) // home assistant
 			  strcpy(rpayload, "open");
 		}
@@ -205,37 +205,37 @@ int processMessage(char * topicName, char * payLoad)
 
     if (memcmp(payLoad, "STOP", 4) == 0)
 	{
-		command = 0x80;
+		command = 0xF0;
 	}
 	else 
 	{	
 // su OPEN/CLOSE indirizzo deve essere base+1
-		device++;      // porta a base+1
+//		device++;      // porta a base+1
 		devtype = 19; // cover
 		if (memcmp(payLoad, "ON", 2) == 0)
 		{
-	      command = 0x81;
+	      command = 0xF1;
 		}
 		else if (memcmp(payLoad, "CLOSE", 5) == 0)
 		{
-		  command = 0x81;
+		  command = 0xF1;
 		  if ((domoticMode == 'h') || (domoticMode == 'H')) // home assistant
 			  strcpy(rpayload, "closed");
 		}
 
 		else if (memcmp(payLoad, "OFF", 3) == 0)
 		{
-	      command = 0x80;
+	      command = 0xF2;
 		}
 		else if (memcmp(payLoad, "OPEN", 4) == 0)
 		{
-		  command = 0x80;
+		  command = 0xF2;
 		  if ((domoticMode == 'h') || (domoticMode == 'H')) // home assistant
 			  strcpy(rpayload, "open");
 		}
 		else
 		{
-          device--;      // riporta a base
+//        device--;      // riporta a base
 		  command = 0xFF;
 		  value = atoi(payLoad);    // percentuale
 		}
@@ -473,7 +473,6 @@ char MQTTrequest(bus_knx_queue * busdata)
 				// 0x30-0x37:rele i2c
 				// 0x40-0x47:pulsanti i2c
 
-
  // START pubblicazione stato device        [0xF5] [y] 32 00 12 01
 	int  device = 0;
 	char devtype = 0;
@@ -484,9 +483,10 @@ char MQTTrequest(bus_knx_queue * busdata)
 
 	device = busdata->busid;
 	action = busdata->buscommand;
-	if ((busdata->bustype > 17) && (busdata->bustype < 30))
-		sprintf(nomeDevice, "%04X", device-1);  // to
-	else
+
+//	if ((busdata->bustype > 17) && (busdata->bustype < 30))
+//		sprintf(nomeDevice, "%04X", device-1);  // to
+//	else
 		sprintf(nomeDevice, "%04X", device);  // to
 
 	printf("MQTTR %04x c:%02x v:%d\n",busdata->busid,busdata->buscommand,busdata->busvalue);
