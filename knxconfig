@@ -14,3 +14,4 @@
 {"device":"0B28","type":"1","maxp":"","descr":"zombi"}
 {"device":"0B29","type":"4","descr":"ancora"}
 {"device":"0B2F","type":"24"}
+{"device":"0BDB","type":"219","descr":"debug"}

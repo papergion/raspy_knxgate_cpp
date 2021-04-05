@@ -9,7 +9,7 @@
 
 #define CLIENTID    "Raspy_KNX_1"
 #define QOS         1
-#define TIMEOUT     10L	// millisecondi
+#define TIMEOUT     50L	// millisecondi
 
 // =============================================================================================
 #define		_MODO "KNX"
@@ -42,6 +42,12 @@
 #define		SUBSCRIBE3 MYPFX "/+/setposition/+"
 // =============================================================================================
 typedef struct {
+    char topic[24];
+    char payload[8];
+    char retain;
+} publish_queue;
+// =============================================================================================
+typedef struct {
     uint16_t  busid;
     char bustype;
     char buscommand;
@@ -55,5 +61,8 @@ void MQTTverify(void);
 void MQTTstop(void);
 char MQTTrequest(bus_knx_queue * busdata);
 char MQTTcommand(bus_knx_queue * busdata);
+// =============================================================================================
+void publish(char * pTopic, char * pPayload, int retain);
+void publish_dequeue(void);
 // ===================================================================================
 #endif

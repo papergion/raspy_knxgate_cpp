@@ -21,7 +21,7 @@
 // comando mqtt setlevel  31		ok + 89 29   88 29    -  81 29   80 29
 
 #define PROGNAME "KNXGATE_X "
-#define VERSION  "1.61"
+#define VERSION  "1.62"
 //#define KEYBOARD
 
 // =============================================================================================
@@ -513,7 +513,7 @@ void rxBufferLoad(int tries)
 		r = read(fduart, &sbyte, 1);
 	    if ((r > 0) && (rx_len < rx_max))
 		{
-			if (verbose) printf("%02x ", sbyte);	// scrittura a video
+			if (verbose) fprintf(stderr,"%02x ", sbyte);	// scrittura a video
 			rx_buffer[rx_len++] = sbyte;
 			loop = 0;
 		}
@@ -522,7 +522,7 @@ void rxBufferLoad(int tries)
 		uSleep(90);
     }
     rx_buffer[rx_len] = 0;        // aggiunge 0x00
-	if ((verbose) && (rx_len)) printf(" - ");	// scrittura a video
+	if ((verbose) && (rx_len)) fprintf(stderr," - ");	// scrittura a video
 }
 // ===================================================================================
 int	waitReceive(char w)
@@ -532,17 +532,17 @@ int	waitReceive(char w)
 	int r;
 	int loop = 0;
 
-	if (verbose>2) printf("wait answer: %2x\n", w);	// scrittura a video
+	if (verbose>2) fprintf(stderr,"wait answer: %2x\n", w);	// scrittura a video
     while (loop < 10000) // 1 sec
     {
 		r = -1;
 		r = read(fduart, &sbyte, 1);
 	    if (r > 0) 
 		{
-			if (verbose>2) printf("received: %2x\n", sbyte);	// scrittura a video
+			if (verbose>2) fprintf(stderr,"received: %2x\n", sbyte);	// scrittura a video
 			if (sbyte == w) 
 			{
-				if (verbose>2) printf("OK\n");	// scrittura a video
+				if (verbose>2) fprintf(stderr,"OK\n");	// scrittura a video
 				return 1;
 			}
 		}
@@ -590,7 +590,7 @@ void bufferPicLoad(char * decBuffer)
 		rx_len = 0;
 		rxBufferLoad(10);	// discard uart input
 
-		if (verbose) printf("req 8 base\n");
+		if (verbose) fprintf(stderr,"req 8 base\n");
 		char requestBuffer[16];
 		int  requestLen = 0;
 		requestBuffer[requestLen++] = '§';
@@ -605,7 +605,7 @@ void bufferPicLoad(char * decBuffer)
 		write(fduart,requestBuffer,requestLen);			  // scrittura su knxgate
 
 		if (waitReceive('k') == 0)
-			printf("  -->PIC communication ERROR...\n");
+			fprintf(stderr,"  -->PIC communication ERROR...\n");
 	  }
 
 	  if ((devtype == 18) || (devtype == 19) || (devtype == 24)) 			// w6 - aggiorna tapparelle pct su pic
@@ -613,7 +613,7 @@ void bufferPicLoad(char * decBuffer)
 		rx_len = 0;
 		rxBufferLoad(10);	// discard uart input
 
-		if (verbose) printf("req 8 move\n");
+		if (verbose) fprintf(stderr,"req 8 move\n");
 		char requestBuffer[16];
 		int  requestLen = 0;
 		requestBuffer[requestLen++] = '§';
@@ -627,7 +627,7 @@ void bufferPicLoad(char * decBuffer)
 		write(fduart,requestBuffer,requestLen);			  // scrittura su knxgate
 
 		if (waitReceive('k') == 0)
-			printf("  -->PIC communication ERROR...\n");
+			fprintf(stderr,"  -->PIC communication ERROR...\n");
 	  }
 
 	} // deviceX > 0
@@ -642,7 +642,7 @@ void bufferPicLoad(char * decBuffer)
 		rxBufferLoad(10);	// discard uart input
 		write(fduart,"§U9",3);			// scrittura su knxgate
 		if (waitReceive('k') == 0)
-			printf("  -->PIC communication ERROR...\n");
+			fprintf(stderr,"  -->PIC communication ERROR...\n");
 	  }  // cover == "false"
   }
 }	
@@ -709,6 +709,56 @@ void mqtt_dequeueExec( void)
 
 	char requestBuffer[24];
 	int requestLen = 0;
+	if ((command == 0xFF) && (busid.Val != 0) && (bustype == 0xDB))	// 0xDB = 219
+	{
+// debug command
+		fprintf(stderr,"********* DEBUG TEST ************\n");
+		char topic[32];
+		char payload[8];
+		strcpy(topic, "knx/switch/set/0D01");
+		strcpy(payload, "ON");
+
+		fprintf(stderr,"** pub set **\n");
+		publish(topic, payload, 0); 
+		strcpy(topic, "knx/switch/set/0D02");
+
+		fprintf(stderr,"** pub set **\n");
+		publish(topic, payload, 0); 
+		strcpy(topic, "knx/switch/set/0D03");
+
+		fprintf(stderr,"** pub set **\n");
+		publish(topic, payload, 0); 
+		strcpy(topic, "knx/switch/set/0D04");
+
+		fprintf(stderr,"** pub set **\n");
+		publish(topic, payload, 0); 
+		strcpy(topic, "knx/switch/set/0D05");
+
+		fprintf(stderr,"** pub set **\n");
+		publish(topic, payload, 0); 
+		strcpy(topic, "knx/switch/set/0D06");
+
+		fprintf(stderr,"** pub set **\n");
+		publish(topic, payload, 0); 
+		strcpy(topic, "knx/switch/set/0D07");
+
+		fprintf(stderr,"** pub set **\n");
+		publish(topic, payload, 0); 
+		strcpy(topic, "knx/switch/set/0D08");
+
+		fprintf(stderr,"** pub set **\n");
+		publish(topic, payload, 0); 
+		strcpy(topic, "knx/switch/set/0D09");
+
+		fprintf(stderr,"** pub set **\n");
+		publish(topic, payload, 0); 
+		strcpy(topic, "knx/switch/set/0D0A");
+
+		fprintf(stderr,"** pub set **\n");
+		publish(topic, payload, 0); 
+		fprintf(stderr,"********* DEBUG TEST OK *********\n");
+	}
+	else
 	if ((command == 0xFF) && (busid.Val != 0) && (bustype == 4))
 	{
 	  requestBuffer[requestLen++] = '§';
@@ -1030,7 +1080,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (verbose) printf("\n");
+	if (verbose) fprintf(stderr,"\n");
 
 
 	// First write to the port
@@ -1041,7 +1091,7 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 	else
-		if (verbose) printf("Serial0 initialized - OK\n");
+		if (verbose) fprintf(stderr,"Serial0 initialized - OK\n");
 
 	mSleep(20);					// pausa
 	rx_len = 0;
@@ -1077,7 +1127,7 @@ int main(int argc, char *argv[])
 		fConfig = NULL;
 	}
 
-	if (verbose) printf("%d devices loaded from file\n",c);
+	if (verbose) fprintf(stderr,"%d devices loaded from file\n",c);
 
 // =======================================================================================================
 	while (1)
@@ -1104,7 +1154,7 @@ int main(int argc, char *argv[])
 			c = 0;
 		if (c > 0) 
 		{
-			if (verbose) printf("\n%02X ", sbyte);	// scrittura a video
+			if (verbose) fprintf(stderr,"\n%02X ", sbyte);	// scrittura a video
 			rx_len = 0;
 			rx_buffer[rx_len++] = sbyte;
 			rx_prefix = sbyte;
@@ -1138,13 +1188,13 @@ int main(int argc, char *argv[])
 			WORD_VAL busid;
 			char devtype;
 			rx_internal = 9;
-			if (verbose) printf(" (%c) msg\n",rx_buffer[1]);	// scrittura a video
+			if (verbose) fprintf(stderr," (%c) msg\n",rx_buffer[1]);	// scrittura a video
 
 			bus_knx_queue _knxrx;
 		    busid.byte.HB = rx_buffer[3];  // to
 		    busid.byte.LB = rx_buffer[4];  // to
 
-//			if (vebose>2) printf("busid %04X\n",busid.Val);
+//			if (vebose>2) fprintf(stderr,"busid %04X\n",busid.Val);
 
 			if (busid.Val > MAXDEVICE)
 			{
@@ -1166,7 +1216,7 @@ int main(int argc, char *argv[])
 
 	// ==========================================================================================================
 //			setState(unsigned char id, char state, unsigned char value) // non indispensabile -
-//			if (verbose) printf("MQTTrequest\n");	// scrittura a video
+//			if (verbose) fprintf(stderr,"MQTTrequest\n");	// scrittura a video
 			MQTTrequest(&_knxrx);
 		}
 
@@ -1175,7 +1225,7 @@ int main(int argc, char *argv[])
 			WORD_VAL busid;
 			char devtype;
 			rx_internal = 9;
-			if (verbose) printf(" %c msg\n",rx_buffer[1]);	// scrittura a video
+			if (verbose) fprintf(stderr," %c msg\n",rx_buffer[1]);	// scrittura a video
 
 			bus_knx_queue _knxrx;
 
@@ -1206,7 +1256,7 @@ int main(int argc, char *argv[])
 		c = getinNowait();				// lettura tastiera
 		if (c)
 		{
-			if (verbose) printf("%c", (char) c);// echo a video
+			if (verbose) fprintf(stderr,"%c", (char) c);// echo a video
 			if (uartgate)
 			{
 				n = write(fduart,&c,1);			// scrittura su knxgate
@@ -1234,6 +1284,9 @@ int main(int argc, char *argv[])
 		}
 		else
 			timeToexec--;
+
+		if (mqttgate) 
+			publish_dequeue();
 
 		if (mqttgate) 
 			MQTTverify();
