@@ -21,7 +21,7 @@
 // comando mqtt setlevel  31		ok + 89 29   88 29    -  81 29   80 29
 
 #define PROGNAME "KNXGATE_X "
-#define VERSION  "1.62"
+#define VERSION  "1.63"
 //#define KEYBOARD
 
 // =============================================================================================
@@ -70,13 +70,13 @@ using namespace std;
 struct	tm *	timeinfo;
 int		timeToexec = 0;
 char	immediatePicUpdate = 0;
-char	verbose = 0;	// 1=verbose     2=verbose+      3=debug
+char	verbose = 0;	// 1=verbose     2=verbose+      3=debug      4=trace
 // =============================================================================================
 char    huegate = 0;		// simulazione hue gate per alexa
 char    mqttgate = 0;		// connessione in/out a broker mqtt
 char    huemqtt_direct = 0;	// 1: ponte diretto hue -> mqtt (stati)     2: ponte hue -> mqtt (comandi)
 char    uartgate = 1;		// connessione in/out serial0 (uart)
-char	mqttbroker[24] = {0};
+char	mqttbroker[32] = {0};
 char	user[24] = {0};
 char	password[24] = {0};
 // =============================================================================================
@@ -1132,6 +1132,7 @@ int main(int argc, char *argv[])
 // =======================================================================================================
 	while (1)
 	{
+		if (verbose>3) fprintf(stderr," $");
 		if (timeToClose)
 		{
 			timeToClose--;
@@ -1154,7 +1155,7 @@ int main(int argc, char *argv[])
 			c = 0;
 		if (c > 0) 
 		{
-			if (verbose) fprintf(stderr,"\n%02X ", sbyte);	// scrittura a video
+			if (verbose) fprintf(stderr,"\n[%02X] ", sbyte);	// scrittura a video
 			rx_len = 0;
 			rx_buffer[rx_len++] = sbyte;
 			rx_prefix = sbyte;
@@ -1272,12 +1273,14 @@ int main(int argc, char *argv[])
 		{
 			if (_schedule.size() > 0)
 			{
+				if (verbose>3) fprintf(stderr," H");
 				hue_dequeueExec();
 				timeToexec = 100;  // msec to wait until next command execute
 			}
 			else
 			if (_schedule_b.size() > 0)
 			{
+				if (verbose>3) fprintf(stderr," M");
 				mqtt_dequeueExec();
 				timeToexec = 100;  // msec to wait until next command execute
 			}
@@ -1286,11 +1289,15 @@ int main(int argc, char *argv[])
 			timeToexec--;
 
 		if (mqttgate) 
+		{
+			if (verbose>3) fprintf(stderr," Q");
 			publish_dequeue();
-
-		if (mqttgate) 
+		}
+		if (mqttgate)
+		{
+			if (verbose>3) fprintf(stderr," V");
 			MQTTverify();
-
+		}
 	}
 // =======================================================================================================
 

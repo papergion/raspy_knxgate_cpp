@@ -317,7 +317,7 @@ int msgarrvd(void *context, char *topicName, int topicLen, MQTTClient_message *m
         payloadptr++;
     }
 	*payloadptr = 0;
-    if (mqVerbose) putchar('\n');
+    if (mqVerbose) fprintf(stderr," - \n");
 
 	processMessage(topicName, payLoad);
 
@@ -343,6 +343,8 @@ int MQTTconnect(char * broker, char * user, char * password, char verbose)
 {
     int rc;
 	if (*broker == 0) return 0;
+
+	_publish_b.clear();
 
 	mqVerbose = verbose;
 	strcpy(mqttAddress, broker);
@@ -432,8 +434,10 @@ void publish(char * pTopic, char * pPayload, int retain)
 void publish_dequeue(void)
 // ===================================================================================
 {
-	if ((_publish_b.size() > 0) && (MQTTbusy == 0))
+	if ((_publish_b.size() > 0) && (MQTTbusy == 0) && (mqttopen == 3))  
+
 	{
+		if (mqVerbose>2) fprintf(stderr,"publish dequeue\n");
 		pubmsg.payload = _publish_b[0].payload;
 		pubmsg.payloadlen = (int)strlen(_publish_b[0].payload);
 		pubmsg.qos = QOS;
@@ -452,7 +456,7 @@ void delivered(void *context, MQTTClient_deliveryToken dt)
 {
 	(void) context;
 	(void) dt;
-	if (mqVerbose>1) fprintf(stderr,"Delivered!\n");
+	if (mqVerbose>2) fprintf(stderr,"Delivered!\n");
 	MQTTbusy = 0;
 }
 // ===================================================================================
