@@ -2,7 +2,7 @@
  * modulo per la emulazione HUE (alexa)  con KNXgate
  * ---------------------------------------------------------------------------
 */
-//
+// v 3.1.1 - ssdp:discover
 //
 // =============================================================================================
 #include <stdint.h>
@@ -51,11 +51,13 @@ using namespace std;
 #define HUE_TCP_PORT 80
 #define HUE_TCP_PACKETSIZE 2700
 #define SHORT_DECLARE
-//#define UNIQUE_MY "hue#"
+//#define UNIQUE_MY "00:17:88:01:00:f0:"
+//#define UNIQUE_MY "00:17:88:b4:d6:c7:"
 #define SHORT_MACADDRESS
 //#define UNIQUE_MACADDRESS
-#define USERNAME "\"2WLEDHardQrI3WHYTHoMcXHgEspsM8ZZRpSKtBQr\""
-//  #define USERNAME "\"2WLEDHardQrI3WHYTHoMcXHgEspsRaspberryBQr\""
+#define USERNAME "\"2WLEDHardQrI3WHYTHoMcXHgEspsM8ZZRpSKtBQr\""	// originale
+//#define USERNAME "\"U8RV5Aj2fAUpChl1vdDwOVqyTThnQGTh9smG32tn\""	// nuovo da hue 1
+
 // =============================================================================================
 
 
@@ -66,14 +68,17 @@ const char HUE_DEVICE_JSON_TEMPLATE[] = "{"
     "\"uniqueid\":\""
 #ifdef UNIQUE_MACADDRESS
     "%s"
+    "-%d\","
 #endif
 #ifdef SHORT_MACADDRESS
-    "%s"
+	"00:17:88:"
+	"%s"
+	"%02x:e9-0b\","
 #endif
 #ifdef UNIQUE_MY
     UNIQUE_MY
+    "%02x:e9-0b\","
 #endif
-    "-%d\","
     "\"modelid\":\"LCT007\","
     "\"state\":{"
         "\"on\":%s,\"bri\":%d,\"xy\":[0,0],\"reachable\": true"
@@ -91,7 +96,7 @@ char	hueverbose = 0;	// 1=hueverbose     2=hueverbose+      3=debug
     UDPServer udpServer;
     char my_ipaddress[NI_MAXHOST];
 	char my_macaddress[13];
-	char my_shortaddress[5];
+	char my_shortaddress[12];
 // =============================================================================================
 unsigned char iDevice = 0;
 unsigned char iDiscovered = 0;
@@ -107,14 +112,25 @@ void mac_eth0(char * interf)
 {
     #define HWADDR_len 6
     int s,i;
+	int j = 0;
     struct ifreq ifr;
     s = socket(AF_INET, SOCK_DGRAM, 0);
     strcpy(ifr.ifr_name, interf);
     ioctl(s, SIOCGIFHWADDR, &ifr);
     for (i=0; i<HWADDR_len; i++)
+	{
         sprintf(&my_macaddress[i*2],"%02x",((char*)ifr.ifr_hwaddr.sa_data)[i]);
+		if (i>2)
+		{
+			sprintf(&my_shortaddress[j],"%02x:",((char*)ifr.ifr_hwaddr.sa_data)[i]);
+			j+=3;
+		}
+	}
     my_macaddress[12]='\0';
-    strcpy (my_shortaddress, &my_macaddress[9]);
+    my_shortaddress[j]='\0';
+
+	//  strcpy (my_shortaddress, &my_macaddress[9]);
+//
     close(s);
 }
 // ===================================================================================
@@ -269,7 +285,7 @@ void _onTCPDescription(TCPSocket *client, string url, string body)
     "</device>"
 "</root>";
 
-  char response[512];
+  char response[2048];
   sprintf(response,HUE_DESCRIPTION_TEMPLATE, my_ipaddress, HUE_TCP_PORT, my_ipaddress, HUE_TCP_PORT, my_macaddress, my_macaddress  );
 
   _sendTCPResponse(client, "200 OK", response, "text/xml");
@@ -285,14 +301,17 @@ const char HUE_DEVICE_JSON_TEMPLATE_FIRST[] = "{"
     "\"uniqueid\":\""
 #ifdef UNIQUE_MACADDRESS
     "%s"
+    "-%d\","
 #endif
 #ifdef SHORT_MACADDRESS
-    "%s"
+	"00:17:88:"
+	"%s"
+	"%02x:e9-0b\","
 #endif
 #ifdef UNIQUE_MY
     UNIQUE_MY
+    "%02x:e9-0b\","
 #endif
-    "-%d\","
 	"\"capabilities\":{}"
 "}";
 
@@ -660,12 +679,17 @@ int HUE_start(char verb)
 	  if (length > 0) 
 	  {
 		std::string request = (char *) message;
+		if (hueverbose>2) printf("\nUDP request: \n %s\n",message);
 		if (request.find("M-SEARCH") != std::string::npos) 
 		{
-		  if ((request.find("upnp:rootdevice") != std::string::npos) || (request.find("device:basic:1") != std::string::npos)) 
+			if ((request.find("Windows") != std::string::npos))
+			{
+			}
+			else
+			if ((request.find("upnp:rootdevice") != std::string::npos) || (request.find("ssdp:discover") != std::string::npos) || (request.find("device:basic:1") != std::string::npos)) 
 		  {
 //			  cout << "\n\nudp request for alexa:  \n" << ipv4 << ":" << port << " => " << message << endl; // "(" << length << ")" << endl;
-			  if (hueverbose>2) printf ("\n\nudp request for alexa - answered");
+			  if (hueverbose == 2) printf ("\n\nudp request for alexa - answered");
 
 			// =============================================================================================
 			const char HUE_UDP_RESPONSE_TEMPLATE[] =
@@ -681,7 +705,7 @@ int HUE_start(char verb)
 			// =============================================================================================
 			  char response[1024];
 			  sprintf(response, HUE_UDP_RESPONSE_TEMPLATE, my_ipaddress, HUE_TCP_PORT, my_macaddress, my_macaddress  );
-//			  printf("\nresponse for alexa: \n%s\n",response);
+			  if (hueverbose>2) printf("\nresponse for UDP alexa: \n%s\n",response);
 			  udpServer.SendTo(response, ipv4, port);
 		  }
 		}
