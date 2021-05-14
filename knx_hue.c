@@ -49,7 +49,7 @@ using namespace std;
 #define HUE_UDP_MULTICAST_MASK   "239.255.255.250"
 #define HUE_UDP_MULTICAST_PORT   1900
 #define HUE_TCP_PORT 80
-#define HUE_TCP_PACKETSIZE 2700
+#define HUE_TCP_PACKETSIZE 4000
 #define SHORT_DECLARE
 //#define UNIQUE_MY "00:17:88:01:00:f0:"
 //#define UNIQUE_MY "00:17:88:b4:d6:c7:"
@@ -298,6 +298,7 @@ string _deviceJson_first(unsigned char id)
 // se il buffer e' 1000 bytes) ci stanno fino a 12 dispositivi
 const char HUE_DEVICE_JSON_TEMPLATE_FIRST[] = "{"
     "\"name\":\"%s\","    // max name length 20 bytes
+//  "\"name\":\"lu %d\","    // name=lu n (1-99)
     "\"uniqueid\":\""
 #ifdef UNIQUE_MACADDRESS
     "%s"
@@ -327,6 +328,7 @@ const char HUE_DEVICE_JSON_TEMPLATE_FIRST[] = "{"
     device.name, my_macaddress, id + 1
 #endif
 #ifdef SHORT_MACADDRESS
+//  id+1, my_shortaddress, id + 1
     device.name, my_shortaddress, id + 1
 #endif
 #ifdef UNIQUE_MY
