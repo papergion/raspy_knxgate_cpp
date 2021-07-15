@@ -249,7 +249,7 @@ void _sendTCPResponse(TCPSocket *client, const char * code, char * body, const c
     "Connection: close\r\n\r\n";
 
   char headers[strlen(HUE_TCP_HEADERS) + 32];
-  sprintf(headers,HUE_TCP_HEADERS,code,mime,strlen(body));
+  sprintf(headers,HUE_TCP_HEADERS,code,mime,(int)strlen(body));
 
   if (hueverbose>2) printf("--> response for alexa \n%s%s\n",headers,body);
 

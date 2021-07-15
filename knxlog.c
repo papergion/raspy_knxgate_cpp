@@ -63,7 +63,7 @@ struct termios tios_bak;
 struct termios tios;
 int    keepRunning = 1;
 char   initialize = 0;
-char   log = 0;
+char   logFlag = 0;
 // =============================================================================================
 FILE   *buslog;
 char	logfilename[64] = {0};
@@ -204,7 +204,7 @@ static char parse_opts(int argc, char *argv[])	// NOT USED
 			printf("Initialize\n");
 			break;
 		case 'l':
-			log = 2;
+			logFlag = 2;
 			printf("Long log\n");
 			break;
 
@@ -461,7 +461,7 @@ int main(int argc, char *argv[])
 			}
 
 
-			if ((rx_len > 7) && ((rx_buffer[1] & 0xF0) == 0xB0) && (log>1)) 
+			if ((rx_len > 7) && ((rx_buffer[1] & 0xF0) == 0xB0) && (logFlag>1)) 
 			{
 				int msglen=(rx_buffer[6] & 0x0F);
 				if (msglen > 0)
@@ -506,7 +506,7 @@ int main(int argc, char *argv[])
 
 			// ?? riceve [y] 0C 0B 31 81 (abbreviato)
 
-			if ((rx_len > 7) && ((rx_buffer[1] & 0xF0) == 0xB0) && (rx_buffer[6] == 0xE1) && (log<2)) 
+			if ((rx_len > 7) && ((rx_buffer[1] & 0xF0) == 0xB0) && (rx_buffer[6] == 0xE1) && (logFlag<2)) 
 			{
 // 08 B4 10 0C 0B 31 E1 00 81 0D
 //				WORD_VAL busfrom;
@@ -577,7 +577,7 @@ int main(int argc, char *argv[])
 		fclose(busmsg);
 		busmsg = NULL;
 	}
-	if (log<2) writeFile();
+	if (logFlag<2) writeFile();
 	printf("end\n");
 	return 0;
 }
