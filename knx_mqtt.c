@@ -78,6 +78,19 @@ void sqSleep(int sec) {
 	}
 }
 // ===================================================================================
+int getHex(char * from, int len)
+// ===================================================================================
+{
+	char tmp[8];
+	tmp[len] = 0;
+	int x = 0;
+	while(len--)
+	{
+		tmp[x++] = *from++;
+	}
+	return (int)strtoul(tmp, NULL, 16);
+}
+// ===================================================================================
 int processMessage(char * topicName, char * payLoad)
 // ===================================================================================
 // è arrivato un messaggio MQTT (p.es. da homeassistant)
@@ -94,6 +107,9 @@ int processMessage(char * topicName, char * payLoad)
   char reply = 0;
   char command = 0xFF;
   char value = 0;
+
+  int  buflen = 0;
+  char buffer[16] = {0};
 
   publish_queue to_publish;
         
@@ -259,10 +275,23 @@ int processMessage(char * topicName, char * payLoad)
     dev[4] = 0;
     device = (int)strtoul(dev, &ch, 16);
 
-    *(payLoad+6) = 0;        // packet: ffffcc ->  <from><command>
-    command = (char)strtoul(payLoad+4, &ch, 16);
-    *(payLoad+4) = 0;
-    from = (int)strtoul(payLoad, &ch, 16);
+	from = getHex(payLoad,4);
+	command = (char) getHex(payLoad+4,2);
+
+	if (mqVerbose) fprintf(stderr,"generic %s \n", dev);
+
+	int lpl = strlen(payLoad);
+	if (lpl > 6)
+	{
+		int p = 4;
+		buflen = 1;
+		while (p < lpl)
+		{
+			buffer[buflen++] = (char) getHex(payLoad+p,2);
+			p += 2;
+		}
+		buffer[0] = (char) buflen-1;
+	}
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -285,6 +314,10 @@ int processMessage(char * topicName, char * payLoad)
 	  schedule.buscommand = command;
 	  schedule.busvalue = value;
 	  schedule.busfrom = from;
+	  schedule.busbuffer[0] = 0;
+	  if ((devtype == 11) && (buflen>0))
+		  for (int i=0; i<buflen; i++)
+			  { schedule.busbuffer[i] = buffer[i]; }
 	// push
 	  _schedule_b.push_back(schedule);
   }
@@ -313,11 +346,11 @@ int msgarrvd(void *context, char *topicName, int topicLen, MQTTClient_message *m
     payLoad = (char*)message->payload;
     for(i=0; i<message->payloadlen; i++)
     {
-        if (mqVerbose) putchar(*payloadptr);
+//      if (mqVerbose) putchar(*payloadptr);
         payloadptr++;
     }
 	*payloadptr = 0;
-    if (mqVerbose) fprintf(stderr," - \n");
+    if (mqVerbose) fprintf(stderr,"%s\n",payLoad);
 
 	processMessage(topicName, payLoad);
 

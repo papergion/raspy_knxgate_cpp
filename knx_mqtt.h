@@ -53,6 +53,7 @@ typedef struct {
     char buscommand;
     char busvalue;
     uint16_t  busfrom;
+	char busbuffer[16];
 //	char baseaddress;
 } bus_knx_queue;
 // =============================================================================================

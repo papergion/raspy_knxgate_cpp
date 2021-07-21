@@ -21,7 +21,7 @@
 // comando mqtt setlevel  31		ok + 89 29   88 29    -  81 29   80 29
 
 #define PROGNAME "KNXGATE_X "
-#define VERSION  "1.63"
+#define VERSION  "1.64"
 //#define KEYBOARD
 
 // =============================================================================================
@@ -702,12 +702,12 @@ void mqtt_dequeueExec( void)
 	char value = _schedule_b[m].busvalue;
 //	char request = _schedule_b[m].busrequest;
 	char from = (_schedule_b[m].busfrom & 0xFF);
-	_schedule_b.erase(_schedule_b.begin());
+//	_schedule_b.erase(_schedule_b.begin());
 
 //	printf("dequeued - id:%02x  command:%02x  value:%d  bus:%02x  type:%02x  des: %s\n", hueid, huecommand, pctvalue, busid, bustype, _devices[hueid].name);
 //	// comandi  01 accendi       02 spegni     04 alza / aumenta       05 abbassa 
 
-	char requestBuffer[24];
+	char requestBuffer[32];
 	int requestLen = 0;
 	if ((command == 0xFF) && (busid.Val != 0) && (bustype == 0xDB))	// 0xDB = 219
 	{
@@ -788,7 +788,19 @@ void mqtt_dequeueExec( void)
 	else
 	if ((command != 0xFF) && (busid.Val != 0) && (bustype != 0))
 	{
-	//    if (devtype != 11)	// <====================not GENERIC=======================
+	    if ((bustype == 11) && (_schedule_b[m].busbuffer[0] > 0))	
+		{
+		  requestBuffer[requestLen++] = '§';
+		  requestBuffer[requestLen++] = 'j';    // 0x   (@j: invia a pic da MQTT cmd esteso da inviare sul bus)
+		  requestBuffer[requestLen++] = from;   // from device
+		  requestBuffer[requestLen++] = busid.byte.HB; // to   device
+		  requestBuffer[requestLen++] = busid.byte.LB; // to   device
+		  int iLen = _schedule_b[m].busbuffer[0]; 
+		  int iX = 0;
+		  while (iX<=iLen)
+			  {requestBuffer[requestLen++] = _schedule_b[m].busbuffer[iX++];} // length + stream command
+		}
+		else
 		{
 		  requestBuffer[requestLen++] = '§';
 		  requestBuffer[requestLen++] = 'y';    // 0x79 (@y: invia a pic da MQTT cmd standard da inviare sul bus)
@@ -798,6 +810,9 @@ void mqtt_dequeueExec( void)
 		  requestBuffer[requestLen++] = command;// command
 		}
 	}
+
+	_schedule_b.erase(_schedule_b.begin());
+
 	if (requestLen > 0)
 	{
 		if (uartgate) write(fduart,requestBuffer,requestLen);			// scrittura su knxgate
