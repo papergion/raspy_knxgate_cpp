@@ -21,7 +21,7 @@
 // comando mqtt setlevel  31		ok + 89 29   88 29    -  81 29   80 29
 
 #define PROGNAME "KNXGATE_X "
-#define VERSION  "1.64"
+#define VERSION  "1.65"
 //#define KEYBOARD
 
 // =============================================================================================
@@ -85,9 +85,9 @@ struct termios tios;
 int	   fduart = 0;
 // =============================================================================================
 FILE   *fConfig;
-char	filename[64];
 int		timeToClose = 0;
 char	previous_address = 0;
+char	configFileName[120];
 // =============================================================================================
   typedef union _WORD_VAL
   {
@@ -315,9 +315,10 @@ int setFirst(void)
 // ===================================================================================
 static void print_usage(const char *prog)	// NOT USED
 {
-	printf("Usage: %s [-uvHBDN]\n", prog);
+	printf("Usage: %s [-uvfHBDN]\n", prog);
 	puts("  -u --picupdate  immediate update pic eeprom \n"
 		 "  -v --verbose 1/2/3  \n"
+		 "  -f --config path/file name\n"
 		 "  -H --huegate interface(alexa)\n"
 		 "  -B --broker address  broker name/address:port (default localhost)\n"
 		 "  -U --broker username\n"
@@ -341,6 +342,7 @@ static char parse_opts(int argc, char *argv[])	// NOT USED
 //------------longname---optarg---short--      0=no optarg    1=optarg obbligatorio     2=optarg facoltativo
 			{ "picupdate",  0, 0, 'u' },
 			{ "verbose",    2, 0, 'v' },
+			{ "file",       2, 0, 'f' },
 			{ "huegate",    0, 0, 'H' },
 			{ "broker",     2, 0, 'B' },
 			{ "user",       2, 0, 'U' },
@@ -351,7 +353,7 @@ static char parse_opts(int argc, char *argv[])	// NOT USED
 			{ NULL, 0, 0, 0 },
 		};
 		int c;
-		c = getopt_long(argc, argv, "uv::HB::U:P:DNh", lopts, NULL);
+		c = getopt_long(argc, argv, "uv::f:HB::U:P:DNh", lopts, NULL);
 		if (c == -1)
 			return 0;
 
@@ -362,6 +364,10 @@ static char parse_opts(int argc, char *argv[])	// NOT USED
 		case 'u':
 			immediatePicUpdate = 1;
 			printf("Immediate pic update\n");
+			break;
+		case 'f':
+			if (optarg) 
+				strcpy(configFileName, optarg);
 			break;
 		case 'H':
 			printf("HUE interface on\n");
@@ -1058,6 +1064,7 @@ int main(int argc, char *argv[])
 	//	printf(CLR WHT BOLD UNDER PROGNAME BOLD VERSION NRM "\n");
 
 	printf(PROGNAME VERSION "\n");
+	strcpy(configFileName,CONFIG_FILE);
 
 	if (parse_opts(argc, argv))
 		return 0;
@@ -1114,7 +1121,6 @@ int main(int argc, char *argv[])
 
 
 	char sbyte;
-	strcpy(filename,CONFIG_FILE);
 	for (int i=0; i<MAXDEVICE; i++) 
 	{
 		busdevType[i] = 0;
@@ -1123,7 +1129,7 @@ int main(int argc, char *argv[])
 
 // preload config file ----------------------------------------------------------------------------
 	c = 0;
-	fConfig = fopen(filename, "rb");
+	fConfig = fopen(configFileName, "rb");
 	if (fConfig)
 	{
 		char line[128];
