@@ -7,6 +7,8 @@
 #define PROGNAME "KNXMONITOR "
 #define VERSION  "1.00"
 
+#define HIGHSPEED
+
 #include <stdint.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -129,8 +131,6 @@ int main(int argc, char *argv[])
 
 	struct termios options;
 	tcgetattr(fd, &options);
-//	cfsetispeed(&options, B115200);
-//	cfsetospeed(&options, B115200);
 
 	options.c_cflag = B115200 | CS8 | CLOCAL | CREAD;		//<Set baud rate
 	options.c_iflag = IGNPAR;
@@ -143,9 +143,21 @@ int main(int argc, char *argv[])
 	printf("\ninitialized - OK\n");
 
 	int  c = 0x15;
+	int  n;
+
+#ifdef HIGHSPEED
+	printf("\ntest high speed...\n");
+	n = write(fd,"@^",2);	// baud = 2Mhz
+	msleep(10);				// pausa
+	options.c_cflag = B2000000 | CS8 | CLOCAL | CREAD;		//<Set baud rate
+	tcflush(fd, TCIFLUSH);
+	tcsetattr(fd, TCSANOW, &options);
+	msleep(10);				// pausa
+#endif
+
 
 	// First write to the port
-	int n = write(fd,"@",1);	 
+	n = write(fd,"@",1);	 
 	if (n < 0) 
 	{
 		perror("Write failed - ");

@@ -155,13 +155,15 @@ static void print_usage(const char *prog)	// NOT USED
 	puts("  -v --verbose \n"
 	     "  -i --initialize \n"
 	     "  -l --long log \n"
+	     "  -f --file name log\n"
+	     "  -F --file name msg\n"
 		 );
 	exit(1);
 }
 // ===================================================================================
 static char parse_opts(int argc, char *argv[])	// NOT USED
 {
-	if ((argc < 1) || (argc > 3))
+	if ((argc < 1) || (argc > 6))
 	{
 		print_usage(PROGNAME);
 		return 3;
@@ -171,7 +173,7 @@ static char parse_opts(int argc, char *argv[])	// NOT USED
 		static const struct option lopts[] = {
 //------------longname---optarg---short--      0=no optarg    1=optarg obbligatorio     2=optarg facoltativo
 			{ "initialize", 0, 0, 'i' },
-			{ "long log",   0, 0, 'l' },
+			{ "LONG log",   0, 0, 'l' },
 			{ "verbose",    0, 0, 'v' },
 			{ "file",       1, 0, 'f' },
 			{ "File",       1, 0, 'F' },
