@@ -7,7 +7,7 @@
 #define PROGNAME "KNXMONITOR "
 #define VERSION  "1.00"
 
-#define HIGHSPEED
+// #define HIGHSPEED
 
 #include <stdint.h>
 #include <unistd.h>
@@ -45,6 +45,9 @@
 struct	tm *	timeinfo;
 char	pduFormat = 0;
 char	deviceFrom = 0;
+char	uartname[24] = {0};
+unsigned char sspeed = 3;
+char	verbose = 0;	// 1=verbose     2=verbose+      3=debug    ...
 // =============================================================================================
 struct termios tios_bak;
 struct termios tios;
@@ -75,6 +78,22 @@ char *ptr;
 long ret;
     ret = strtoul(aData, &ptr, 16);
     return (char) ret;
+}
+// =============================================================================================
+char aTOchar(char * aData)
+{
+char *ptr;
+long ret;
+    ret = strtoul(aData, &ptr, 10);
+    return (char) ret;
+}
+// =============================================================================================
+uint16_t aTOint(char * aData)
+{
+char *ptr;
+long ret;
+    ret = strtoul(aData, &ptr, 10);
+    return (uint16_t) ret;
 }
 // ===================================================================================
 int getinWait( void )
@@ -107,6 +126,76 @@ void msleep(int millisec) {
     nanosleep(&req, (struct timespec *)NULL);
 }
 // ===================================================================================
+static void print_usage(const char *prog)
+{
+	printf("Usage: %s [-vSN]\n", prog);
+	puts("  -v --verbose \n"
+		 "  -N --uart dev name (/dev/serial0)\n"
+		 "  -S --uart speed (1-2-3) default 3\n"
+		 "  -N --uart dev name (/dev/serial0)\n"
+		 );
+	exit(1);
+}
+// ===================================================================================
+static char parse_opts(int argc, char *argv[])	
+{
+	if ((argc < 1) || (argc > 3))
+	{
+		print_usage(PROGNAME);
+		return 3;
+	}
+	strcpy(uartname,"/dev/serial0");
+
+	while (1) {
+		static const struct option lopts[] = {
+//------------longname---optarg---short--      0=no optarg    1=optarg obbligatorio     2=optarg facoltativo
+			{ "verbose",    2, 0, 'v' },
+			{ "speed",		2, 0, 'S' },
+			{ "uart_name",	1, 0, 'N' },
+			{ "help",		0, 0, '?' },
+			{ NULL, 0, 0, 0 },
+		};
+		int c;
+		c = getopt_long(argc, argv, "v::S:N:h", lopts, NULL);
+		if (c == -1)
+			return 0;
+
+		switch (c) {
+		case 'h':
+			print_usage(PROGNAME);
+			break;
+		case 'S': // uart speed
+			if (optarg) 
+			{
+				sspeed=aTOint(optarg);
+				printf("uart speed: %d\n",sspeed);
+			}
+			break;
+		case 'N': // uart name
+			if (optarg) 
+				strcpy(uartname, optarg);
+			break;
+		case 'v':
+			if (optarg) 
+				verbose=aTOchar(optarg);
+			if (verbose == 0) verbose=1;
+			if (verbose > 9) verbose=9;
+
+			printf("Verbose %d\n",verbose);
+			break;
+
+		case '?':
+            fprintf(stderr,"Unknown option `-%c'.\n", optopt);
+			return 2;		
+
+		default:
+			print_usage(argv[0]);
+			break;
+		}
+	}
+	return 0;
+}
+// ===================================================================================
 
 
 // ===================================================================================
@@ -115,6 +204,9 @@ int main(int argc, char *argv[])
 	(void) argc;
 	(void) argv;
 
+	if (parse_opts(argc, argv))
+		return 0;
+
 	initkeyboard();
 	atexit(endkeyboard);
 	
@@ -122,10 +214,12 @@ int main(int argc, char *argv[])
 	printf("UART_Initialization\n");
 	int fd = -1;
 	
-	fd = open("/dev/serial0", O_RDWR | O_NOCTTY | O_NDELAY);		//Open in non blocking read/write mode
+//	fd = open("/dev/serial0", O_RDWR | O_NOCTTY | O_NDELAY);		//Open in non blocking read/write mode
+	fd = open(uartname, O_RDWR | O_NOCTTY | O_NDELAY);		//Open in non blocking read/write mode
 	if (fd == -1) 
 	{
-		perror("open_port: Unable to open /dev/serial0 - ");
+//		perror("open_port: Unable to open /dev/serial0 - ");
+		fprintf(stderr, "unable to open %s\n",uartname);
 		return(-1);
 	}
 

@@ -188,7 +188,8 @@ char busdevType[MAXDEVICE] = {0};
 //         
 
 char busdevHue [MAXDEVICE] = {0};
-char busdevState [MAXDEVICE] = {0x80};
+//char busdevState [MAXDEVICE] = {0x80};
+char busdevState [MAXDEVICE] = {1};
 
 extern std::vector<hue_device_t> _devices;
 std::vector<hue_knx_queue> _schedule;

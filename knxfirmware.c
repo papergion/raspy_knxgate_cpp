@@ -42,17 +42,21 @@
 struct termios tios_bak;
 struct termios tios;
 int	   fduart = 0;
+char   uartname[24] = {0};
+unsigned char sspeed = 3;
 // =============================================================================================
   typedef union _WORD_VAL
   {
-    unsigned int  Val;
-    char v[2];
+    uint16_t Val;
+    unsigned char v[2];
     struct
     {
-        char LB;
-        char HB;
+        unsigned char LB;
+        unsigned char HB;
     } byte;
   } WORD_VAL;
+// ===================================================================================
+   WORD_VAL block_check;
 // ===================================================================================
 enum _PICPROG_SM
 {
@@ -72,27 +76,27 @@ enum _PICPROG_SM
     PICPROG_ERROR
 } sm_picprog = PICPROG_FREE;
 // =============================================================================================
-char	sbyte;
-char    rx_prefix;
-char    rx_buffer[255];
+unsigned char	sbyte;
+unsigned char    rx_prefix;
+unsigned char    rx_buffer[255];
 int     rx_len;
 int     rx_max = 250;
-char    rx_internal;
+unsigned char    rx_internal;
 
 WORD_VAL prog_address;
 int     prog_error;
 int     prog_retry = 0;
 #define PICBUF 64
-char    prog_file_data[PICBUF];
+unsigned char    prog_file_data[PICBUF];
 FILE   *picFw;
 char	filename[64];
-char	ValidResponse;
+unsigned char	ValidResponse;
 int		fwTimeout;
 int		fwRetry;
-char	force = 0;
+unsigned char	force = 0;
 // ===================================================================================
-char   verbose = 0;	
-char   prog_mode = 3;	// programmazione di prova
+unsigned char   verbose = 0;	
+unsigned char   prog_mode = 3;	// programmazione di prova
 // ===================================================================================
 void rxBufferLoad(int tries);
 char aConvert(char * aData);
@@ -110,35 +114,47 @@ long ret;
     ret = strtoul(aData, &ptr, 16);
     return (char) ret;
 }
+// =============================================================================================
+uint16_t aTOint(char * aData)
+{
+char *ptr;
+long ret;
+    ret = strtoul(aData, &ptr, 10);
+    return (uint16_t) ret;
+}
 // ===================================================================================
 static void print_usage(const char *prog)
 {
-	printf("Usage: %s [-fvu]\n", prog);
+	printf("Usage: %s [-fvNFu]\n", prog);
 	puts("  -f --file     firmware file name (bin)\n"
 		 "  -v --verbose \n"
+		 "  -N --uart dev name (/dev/serial0)\n"
+		 "  -F --force    unresponsive firmware\n"
 		 "  -u --update   true firmware update\n");
+
 	exit(1);
 }
 // ===================================================================================
 static char parse_opts(int argc, char *argv[])
 {
-	if ((argc < 2) || (argc > 5))
+	if ((argc < 2) || (argc > 7))
 	{
 		print_usage(PROGNAME);
 		return 3;
 	}
-
+	strcpy(uartname,"/dev/serial0");
 	while (1) {
 		static const struct option lopts[] = {
 			{ "file",      1, 0, 'f' },
 			{ "update",    0, 0, 'u' },
 			{ "verbose",   0, 0, 'v' },
+			{ "uart_name", 1, 0, 'N' },
 			{ "force",     0, 0, 'F' },
 			{ NULL, 0, 0, 0 },
 		};
 		int c;
 
-		c = getopt_long(argc, argv, "f:uvF ", lopts, NULL);
+		c = getopt_long(argc, argv, "f:uvN:F ", lopts, NULL);
 
 		if (c == -1)
 			break;
@@ -159,6 +175,10 @@ static char parse_opts(int argc, char *argv[])
 		case 'v':
             printf("Verbose\n"); 
 			verbose = 1;	// programmazione vera
+			break;
+		case 'N': // uart name
+			if (optarg) 
+				strcpy(uartname, optarg);
 			break;
 		case ':':
 			printf("Option -%c requires a value.\n", optopt);
@@ -184,10 +204,11 @@ void UART_start(void)
 	printf("UART_Initialization\n");
 	fduart = -1;
 	
-	fduart = open("/dev/serial0", O_RDWR | O_NOCTTY | O_NDELAY);		//Open in non blocking read/write mode
+//	fduart = open("/dev/serial0", O_RDWR | O_NOCTTY | O_NDELAY);		//Open in non blocking read/write mode
+	fduart = open(uartname, O_RDWR | O_NOCTTY | O_NDELAY);		//Open in non blocking read/write mode
 	if (fduart == -1) 
 	{
-		perror("open_port: Unable to open /dev/serial0 - ");
+		fprintf(stderr,"open_port: Unable to open %s ",uartname);
         exit(EXIT_FAILURE);
 	}
 
@@ -195,8 +216,8 @@ void UART_start(void)
 	tcgetattr(fduart, &options);
 //	cfsetispeed(&options, B115200);
 //	cfsetospeed(&options, B115200);
-//	options.c_cflag = B115200 | CS8 | CLOCAL | CREAD;		//<Set baud rate
 	options.c_cflag = B115200 | CS8 | CLOCAL | CREAD | CSTOPB;		//<Set baud rate - 2 bits stop?
+//	options.c_cflag = B57600 | CS8 | CLOCAL | CREAD | CSTOPB;		//<Set baud rate - 2 bits stop?
 	options.c_iflag = IGNPAR;
 	options.c_oflag = 0;
 	options.c_lflag = 0;
@@ -259,7 +280,8 @@ void  LogBufferTx(char * requestBuffer, int requestLen)
 	fprintf(stderr,"tx-> ");
 	for (int r=0; r<requestLen; r++)
 	{
-		fprintf(stderr,"%02x ", *requestBuffer++);
+		sbyte = *requestBuffer++;
+		fprintf(stderr,"%02x ", sbyte);
 	}
 	fprintf(stderr,"\n");
 }
@@ -447,9 +469,8 @@ void  MsgPrepareQuery(char log)	// cmd_sys 0x10
 // =====================================================================================================
 char PicProg(void)
 {
-   int s, l, progptr;
+   int s, len, progptr;
    char sBuf[16];
-   WORD_VAL block_check;
 
    char crcdep;
    char crcseq;
@@ -471,10 +492,17 @@ char PicProg(void)
 //------------------------------------------------------
     case PICPROG_QUERY_WAIT: 
 // attesa risposta
-	  if (ValidResponse == 1)
+	  if (ValidResponse == 1) 
 	  {
 		  ValidResponse = 0;
 		  printf("\n========> current version is %.*s  \n\n", rx_len, rx_buffer);
+	 	  sm_picprog = PICPROG_QUERY_OK;
+      }
+	  else
+	  if (force)
+	  {
+		  ValidResponse = 0;
+		  printf("\n========> NO current version.\n\n");
 	 	  sm_picprog = PICPROG_QUERY_OK;
       }
 	  else
@@ -534,6 +562,9 @@ char PicProg(void)
 		  if ((rx_buffer[0] == 0x04) && (rx_buffer[1] == 0x10) && (rx_buffer[2] == 0x07)) 
 	           sm_picprog = PICPROG_REQUEST_OK; 
 		  else
+		  if ((rx_buffer[0] == 0x04) && (force == 1) && (rx_buffer[2] == 0x07)) 
+	           sm_picprog = PICPROG_REQUEST_OK; 
+		  else
 		  {
 		 	  sm_picprog = PICPROG_ERROR;
 			  printf("\nPIC answer error at initial CMD_FIRMWARE \n");
@@ -553,11 +584,11 @@ char PicProg(void)
 
 //------------------------------------------------------
     case PICPROG_REQUEST_OK:
-	  l = fread(&prog_file_data[0], sizeof(unsigned char), PICBUF, picFw);
+	  len = fread(&prog_file_data[0], sizeof(unsigned char), PICBUF, picFw);
       sm_picprog = PICPROG_FLASH_BLOCK_START;
-      while (l < PICBUF)
+      while (len < PICBUF)
       {
-         prog_file_data[l++] = 0xFF;
+         prog_file_data[len++] = 0xFF;
       }
 
 //------------------------------------------------------
